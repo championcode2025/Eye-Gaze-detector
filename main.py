@@ -1,8 +1,9 @@
 import cv2 
-from src.camera import Camera
-from src.facemesh import FaceMesh
-from src.eyeextractor import EyeExtractor 
-from src.visualiser import Visualiser 
+from camera import Camera
+from facemesh import FaceMesh
+from eyeextractor import EyeExtractor 
+from visualiser import Visualiser
+from gaze_estimator import GazeEstimator
 
 def main():
     # camera setup
@@ -13,6 +14,9 @@ def main():
 
     # computes iris centers + gaze zone
     extractor = EyeExtractor()
+    
+    # YOUR CODE: Gaze estimator for calibration + smoothing
+    estimator = GazeEstimator()
     
     # draws landmarks on screen
     visualiser = Visualiser()
@@ -32,9 +36,18 @@ def main():
         # extract eye data
         if landmarks:
             gaze_data = extractor.extract(landmarks, frame.shape)
+            
+            # YOUR CODE: Pass raw gaze through estimator
+            gaze_estimate = estimator.estimate(
+                gaze_data.get('gaze_ratio_x', 0.5),
+                gaze_data.get('gaze_ratio_y', 0.5),
+                frame.shape[1],
+                frame.shape[0]
+            )
+            
             print(f"Zone:{gaze_data['zone']} | "
-                  f"Left: {gaze_data['left_iris']} | "
-                  f"Right: {gaze_data['right_iris']}")
+                  f"Raw gaze: ({gaze_data.get('gaze_ratio_x', 0.5):.2f}, {gaze_data.get('gaze_ratio_y', 0.5):.2f}) | "
+                  f"Estimated: ({gaze_estimate['gaze_x']:.2f}, {gaze_estimate['gaze_y']:.2f})")
             
             # draw on frame
             frame = visualiser.draw(frame, landmarks, gaze_data)
@@ -50,5 +63,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-            
