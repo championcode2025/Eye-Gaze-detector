@@ -1,8 +1,4 @@
-"""
-P1 — Gaze Estimator Module
-Week 1: Accept raw gaze_ratio from P2, output normalized gaze
-Week 2: Add calibration and smoothing
-"""
+
 
 import numpy as np
 import json
@@ -35,7 +31,7 @@ class GazeEstimator:
         # Load existing calibration if available
         self.load_calibration()
 
-    # ===== WEEK 1: Basic gaze estimation =====
+ 
     
     def estimate(self, gaze_ratio_x, gaze_ratio_y, frame_width, frame_height):
         """
@@ -54,22 +50,19 @@ class GazeEstimator:
                 "confidence": float in [0, 1]  # How sure we are (0=no face, 1=clear)
             }
         
-        Week 1: Pass through raw values
-        Week 2: Apply calibration and smoothing
+        
         """
         
-        # Week 1: Just use raw gaze ratio (no calibration yet)
+        
         gaze_x = gaze_ratio_x
         gaze_y = gaze_ratio_y
         
-        # Week 2: Uncomment when calibration is ready
-        # if self.calib_coef_x is not None:
-        #     gaze_x, gaze_y = self.apply_calibration(
-        #         gaze_ratio_x, gaze_ratio_y, frame_width, frame_height
-        #     )
+        if self.calib_coef_x is not None:
+            gaze_x, gaze_y = self.apply_calibration(
+                gaze_ratio_x, gaze_ratio_y, frame_width, frame_height
+            )
         
-        # Week 2: Apply smoothing
-        # gaze_x, gaze_y = self.smooth(gaze_x, gaze_y)
+        gaze_x, gaze_y = self.smooth(gaze_x, gaze_y)
         
         # Return the final estimate
         return {
@@ -78,7 +71,6 @@ class GazeEstimator:
             "confidence": 0.95
         }
 
-    # ===== WEEK 2: Calibration =====
     
     def start_calibration(self, frame_width, frame_height):
         """
