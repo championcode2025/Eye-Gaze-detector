@@ -8,8 +8,8 @@ class FaceMesh:
         self.detector = self.mp_face_mesh.FaceMesh(
             max_num_faces = 1, # 1 user's face
             refine_landmarks = True, # gives iris points
-            min_detection_confidence = 0.5, # confidence score for face detection
-            min_tracking_confidence = 0.5 # confidence score for continous tracking
+            min_detection_confidence = 0.6, # confidence score for face detection
+            min_tracking_confidence = 0.6 # confidence score for continous tracking
         )
         print("facemesh detector ready")
 

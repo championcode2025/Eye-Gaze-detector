@@ -3,7 +3,9 @@
 import numpy as np
 import json
 from pathlib import Path
-
+import pickle
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 class GazeEstimator:
     """
@@ -15,56 +17,48 @@ class GazeEstimator:
     """
     
     def __init__(self, calibration_file="calibration.json"):
-        """Initialize the gaze estimator with optional calibration file"""
         self.calibration_file = calibration_file
         self.calib_coef_x = None
         self.calib_coef_y = None
         
         # Smoothing parameters
-        self.alpha = 0.4  # Exponential moving average factor
+        self.alpha = 0.4  
         self.prev_x = 0.5
         self.prev_y = 0.5
         
-        # Calibration data storage
         self.calibration_points = []
-        
-        # Load existing calibration if available
         self.load_calibration()
+        
+        # INTEGRATION: Load the ML Model brain
+        self.ml_model = None
+        try:
+            with open('gaze_ml_model.pkl', 'rb') as f:
+                self.ml_model = pickle.load(f)
+                print("✓ Successfully loaded Machine Learning Gaze Model!")
+        except FileNotFoundError:
+            print("⚠ ML model file 'gaze_ml_model.pkl' not found. Running raw pass-through.")
 
  
     
     def estimate(self, gaze_ratio_x, gaze_ratio_y, frame_width, frame_height):
-        """
-        Main function called every frame by main.py
         
-        Args:
-            gaze_ratio_x (float): Raw iris position relative to eye [0, 1]
-            gaze_ratio_y (float): Raw iris position relative to eye [0, 1]
-            frame_width (int): Video frame width in pixels
-            frame_height (int): Video frame height in pixels
+        if self.ml_model is not None:
+            # Predict screen pixel coordinates using the trained model
+            prediction = self.ml_model.predict([[gaze_ratio_x, gaze_ratio_y]])
+            screen_px_x = prediction[0][0]
+            screen_px_y = prediction[0][1]
+            
+            # Normalize pixel points to a [0, 1] range relative to your screen resolution
+            gaze_x = max(0.0, min(1.0, screen_px_x / 1920)) # Change to your monitor width if different
+            gaze_y = max(0.0, min(1.0, screen_px_y / 1080)) # Change to your monitor height if different
+        else:
+            # Fallback to raw inputs if model isn't built yet
+            gaze_x = gaze_ratio_x
+            gaze_y = gaze_ratio_y
         
-        Returns:
-            dict: {
-                "gaze_x": float in [0, 1],     # Screen position (0=left, 1=right)
-                "gaze_y": float in [0, 1],     # Screen position (0=top, 1=bottom)
-                "confidence": float in [0, 1]  # How sure we are (0=no face, 1=clear)
-            }
-        
-        
-        """
-        
-        
-        gaze_x = gaze_ratio_x
-        gaze_y = gaze_ratio_y
-        
-        if self.calib_coef_x is not None:
-            gaze_x, gaze_y = self.apply_calibration(
-                gaze_ratio_x, gaze_ratio_y, frame_width, frame_height
-            )
-        
+        # Apply your smoothing filter to stabilize the point
         gaze_x, gaze_y = self.smooth(gaze_x, gaze_y)
         
-        # Return the final estimate
         return {
             "gaze_x": round(gaze_x, 4),
             "gaze_y": round(gaze_y, 4),
