@@ -22,7 +22,7 @@ class GazeEstimator:
         self.calib_coef_y = None
         
         # Smoothing parameters
-        self.alpha = 0.4  
+        self.alpha = 0.15  
         self.prev_x = 0.5
         self.prev_y = 0.5
         

@@ -21,10 +21,12 @@ class EyeExtractor:
         right_iris = self._get_iris_center(landmarks, RIGHT_IRIS, w, h)
 
         # Relative ratio instead of raw pixel zone
+        # FIXED: Match left_iris with left eye landmarks (263, 362...) 
+        # and right_iris with right eye landmarks (33, 133...)
         left_ratio  = self._get_iris_ratio(landmarks, left_iris,
-                                           33,  133, 159, 145, w, h)
-        right_ratio = self._get_iris_ratio(landmarks, right_iris,
                                            263, 362, 386, 374, w, h)
+        right_ratio = self._get_iris_ratio(landmarks, right_iris,
+                                           33,  133, 159, 145, w, h)
 
         gaze_ratio_x = (left_ratio[0] + right_ratio[0]) / 2
         gaze_ratio_y = (left_ratio[1] + right_ratio[1]) / 2

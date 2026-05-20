@@ -114,7 +114,7 @@ def run_data_collection(filename="gaze_dataset.csv"):
                         writer.writerow([time.time(), round(raw_x, 5), round(raw_y, 5), target_x, target_y])
                     else:
                         # Safety check if key names are different
-                        print(f"⚠ Key name mismatch! Available keys in your extractor: {list(gaze_data.keys())}")
+                         print(f"⚠ Key name mismatch! Available keys in your extractor: {list(gaze_data.keys())}")
                 
                 if cv2.waitKey(1) & 0xFF == 27:
                     print("Data collection stopped early.")
