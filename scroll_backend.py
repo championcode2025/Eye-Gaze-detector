@@ -1,36 +1,38 @@
 import pyautogui
+import time
 
 class ScrollBackend:
     def __init__(self):
-        # Force strict processing delays to 0 for instant interface response
         pyautogui.PAUSE = 0.0
-        pyautogui.FAILSAFE = True
+        pyautogui.FAILSAFE = False  # FIX: was True — caused cursor to freeze at corners
         
-        # Scroll strength configuration (Adjust these values to change scroll speed)
-        self.normal_scroll_amount = 150
-        self.fast_scroll_amount = 300
+        # FIX: was 150/300 — way too much, caused instant page jump
+        self.normal_scroll_amount = 3
+        self.fast_scroll_amount = 6
+
+        # FIX: cooldown prevents scroll firing 30x per second
+        self.last_scroll_time = 0
+        self.scroll_cooldown = 0.4  # seconds between each scroll action
 
     def scroll_up(self, speed="normal"):
-        """Scrolls the active window upwards."""
         clicks = self.fast_scroll_amount if speed == "fast" else self.normal_scroll_amount
-        # Positive values scroll UP in PyAutoGUI
         pyautogui.scroll(clicks)
 
     def scroll_down(self, speed="normal"):
-        """Scrolls the active window downwards."""
         clicks = self.fast_scroll_amount if speed == "fast" else self.normal_scroll_amount
-        # Negative values scroll DOWN in PyAutoGUI
         pyautogui.scroll(-clicks)
 
     def handle_gaze_scrolling(self, zone_id):
-        """
-        Integrates with Person 4's 3x3 dashboard zones.
-        If looking at the top row (zones 1, 2, 3) -> scroll up.
-        If looking at the bottom row (zones 7, 8, 9) -> scroll down.
-        """
+        # FIX: check cooldown before scrolling
+        now = time.time()
+        if now - self.last_scroll_time < self.scroll_cooldown:
+            return  # too soon, skip this frame
+
         if zone_id in [1, 2, 3]:
             self.scroll_up(speed="normal")
-            print("📜 Action: Gaze Scroll UP")
+            self.last_scroll_time = now
+            print("📜 Gaze Scroll UP")
         elif zone_id in [7, 8, 9]:
             self.scroll_down(speed="normal")
-            print("📜 Action: Gaze Scroll DOWN")
+            self.last_scroll_time = now
+            print("📜 Gaze Scroll DOWN")
