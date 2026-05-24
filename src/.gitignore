@@ -1,0 +1,4 @@
+__pycache__/
+*.pyc
+gaze_dataset.csv
+gaze_ml_model.pkl
