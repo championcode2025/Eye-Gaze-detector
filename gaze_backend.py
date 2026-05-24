@@ -6,15 +6,17 @@ class GazeBackend:
         self.screen_h = int(pyautogui.size()[1])
         
         pyautogui.PAUSE = 0.0
-        pyautogui.FAILSAFE = False  # FIX: was True — cursor hitting corner caused crash + freeze
+        pyautogui.FAILSAFE = False # prevents crash and freeze when cursor hits corner
 
         self.smoothing_factor = 0.25
+         # Initializes the starting coordinates of your cursor tracking variables
         self.current_smoothed_x = float(self.screen_w / 2)
         self.current_smoothed_y = float(self.screen_h / 2)
 
-        # FIX 3: store gaze position for zone calculation
+        # store gaze position for zone calculation
         self.last_gaze_x = 0.5
         self.last_gaze_y = 0.5
+        # sets initial active screen zone to zone 5
         self.current_zone = 5
         self.zone_change_threshold = 0.04
 
@@ -28,21 +30,25 @@ class GazeBackend:
         raw_ml_x = float(ml_screen_x_pct)
         raw_ml_y = float(ml_screen_y_pct)
 
-        # FIX 3: save raw gaze for zone calculation
+        # save raw gaze for zone calculation
         self.last_gaze_x = raw_ml_x
         self.last_gaze_y = raw_ml_y
 
         # calibration formula - map usable gaze range to full screen
+        # takes a tiny eye-movement range and stretches it out so that it expands to full 0.0 to 1.0 scale
         amplified_x = (raw_ml_x - 0.40) / (0.70 - 0.40)
         amplified_y = (raw_ml_y - 0.15) / (0.45 - 0.15)
 
         amplified_x = max(0.0, min(1.0, amplified_x))
         amplified_y = max(0.0, min(1.0, amplified_y))
-
+        # converts decimal percentages into real-world monitor pixels
         target_pixel_x = amplified_x * self.screen_w
         target_pixel_y = amplified_y * self.screen_h
 
         # LERP smoothing
+        # mouse does not move directly to where our eye points
+        # calculates the distance between where the cursor is and where it wants to go
+        # and multiplies it by smoothing_factor - gives cursor smooth feel
         self.current_smoothed_x += (target_pixel_x - self.current_smoothed_x) * self.smoothing_factor
         self.current_smoothed_y += (target_pixel_y - self.current_smoothed_y) * self.smoothing_factor
 
@@ -53,14 +59,14 @@ class GazeBackend:
         final_x = max(40, min(self.screen_w - 40, final_x))
         final_y = max(40, min(self.screen_h - 40, final_y))
 
-        # FIX: wrap in try/except so one bad frame doesn't freeze everything
+        # wrap in try/except so one bad frame doesn't freeze everything
         try:
             pyautogui.moveTo(final_x, final_y)
         except Exception as e:
             print(f"Mouse move failed: {e}")
 
     def calculate_current_zone(self):
-        # FIX 3: use gaze position directly, not cursor position
+        # use gaze position directly, not cursor position
         col = int(self.last_gaze_x * 3)
         col = max(0, min(2, col))
 
