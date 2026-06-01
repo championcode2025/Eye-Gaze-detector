@@ -1,5 +1,5 @@
 
-
+import cv2
 import numpy as np
 import json
 from pathlib import Path
@@ -15,7 +15,7 @@ class GazeEstimator:
     """
     
     def __init__(self, calibration_file="calibration.json"):
-        """Initialize the gaze estimator with optional calibration file"""
+        
         self.calibration_file = calibration_file
         self.calib_coef_x = None
         self.calib_coef_y = None
@@ -25,67 +25,51 @@ class GazeEstimator:
         self.prev_x = 0.5
         self.prev_y = 0.5
         
-        # Calibration data storage
+        # REPLACE WITH THIS
         self.calibration_points = []
-        self.ml_model = None
-        self.load_ml_model()
 
-        # Load existing calibration if available
+        self.kf_x = self._make_kalman()
+        self.kf_y = self._make_kalman()
+
         self.load_calibration()
 
- 
+    def _make_kalman(self):
+        kf = cv2.KalmanFilter(2, 1)
+        kf.transitionMatrix = np.array([[1,1],
+                                       [0,1]], np.float32)
+        kf.measurementMatrix = np.array([[1,0]], np.float32)
+        kf.processNoiseCov = np.eye(2, dtype=np.float32) * 1e-4
+        kf.measurementNoiseCov = np.array([[1e-2]], np.float32)
+        kf.statePost = np.array([[0.5], [0]], np.float32)
+        return kf
     
     def estimate(self, gaze_ratio_x, gaze_ratio_y, frame_width, frame_height):
-        """
-        Main function called every frame by main.py
-        
-        Args:
-            gaze_ratio_x (float): Raw iris position relative to eye [0, 1]
-            gaze_ratio_y (float): Raw iris position relative to eye [0, 1]
-            frame_width (int): Video frame width in pixels
-            frame_height (int): Video frame height in pixels
-        
-        Returns:
-            dict: {
-                "gaze_x": float in [0, 1],     # Screen position (0=left, 1=right)
-                "gaze_y": float in [0, 1],     # Screen position (0=top, 1=bottom)
-                "confidence": float in [0, 1]  # How sure we are (0=no face, 1=clear)
-            }
-        
-        
-        """
-        
-        
-        if self.ml_model is not None:
+        # Kalman filter for x axis
+        self.kf_x.predict()
+        corrected_x = self.kf_x.correct(
+            np.array([[np.float32(gaze_ratio_x)]])
+        )
+        gaze_x = float(corrected_x[0])
 
-            pred = self.ml_model.predict([[
-                gaze_ratio_x,
-                gaze_ratio_y
-            ]])
+        # Kalman filter for y axis
+        self.kf_y.predict()
+        corrected_y = self.kf_y.correct(
+            np.array([[np.float32(gaze_ratio_y)]])
+        )
+        gaze_y = float(corrected_y[0])
 
-            gaze_x = pred[0][0] / frame_width
-            gaze_y = pred[0][1] / frame_height
-
-        elif self.calib_coef_x is not None:
-
+        # apply calibration on top if available
+        if self.calib_coef_x is not None:
             gaze_x, gaze_y = self.apply_calibration(
-                gaze_ratio_x,
-                gaze_ratio_y,
-                frame_width,
-                frame_height
+                gaze_x, gaze_y, frame_width, frame_height
             )
 
-        else:
+        gaze_x = max(0.0, min(1.0, gaze_x))
+        gaze_y = max(0.0, min(1.0, gaze_y))
 
-            gaze_x = gaze_ratio_x
-            gaze_y = gaze_ratio_y
-        
-        gaze_x, gaze_y = self.smooth(gaze_x, gaze_y)
-        
-        # Return the final estimate
         return {
-            "gaze_x": round(gaze_x, 4),
-            "gaze_y": round(gaze_y, 4),
+            "gaze_x":     round(gaze_x, 4),
+            "gaze_y":     round(gaze_y, 4),
             "confidence": 0.95
         }
 
@@ -242,33 +226,6 @@ class GazeEstimator:
         else:
             print(f"⚠ No calibration file found at {self.calibration_file}")
 
-    # ===== WEEK 2: Smoothing (Drift Correction) =====
-    def load_ml_model(self):
-
-        model_path = Path("gaze_ml_model.pkl")
-
-        if model_path.exists():
-
-            try:
-
-                with open(model_path,"rb") as f:
-                    self.ml_model = pickle.load(f)
-
-                print(
-                "✓ Loaded ML gaze model"
-                )
-
-            except Exception as e:
-
-                print(
-                f"⚠ ML model load failed: {e}"
-                )
-
-        else:
-
-            print(
-            "⚠ No gaze_ml_model.pkl found"
-            )
     def smooth(self, gaze_x, gaze_y):
         """
         Apply exponential moving average to smooth noisy gaze data.
