@@ -104,5 +104,3 @@ class Visualiser:
         cv2.rectangle(frame, (x1,y1), (x2,y2), YELLOW, 2)
         return frame 
     
-
-
