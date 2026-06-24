@@ -2,6 +2,7 @@ import sys
 import cv2
 import numpy as np
 import json
+import pyautogui
 from pathlib import Path
 from PyQt5.QtWidgets import (
     QApplication,
@@ -15,7 +16,7 @@ from PyQt5.QtWidgets import (
 
 from PyQt5.QtGui import QImage, QPixmap, QFont
 from PyQt5.QtCore import Qt, QTimer
-
+from src.overlay_widget import OverlayWidget
 from src.camera import Camera
 from src.facemesh import FaceMesh
 from src.eyeextractor import EyeExtractor
@@ -24,6 +25,7 @@ from src.gaze_estimator import GazeEstimator
 from src.gaze_backend import GazeBackend
 from src.click_backend import ClickBackend
 from src.scroll_backend import ScrollBackend
+from src.gaze_dot import GazeDot
 
 class ZoneBox(QFrame):
     def __init__(self, text):
@@ -164,6 +166,10 @@ class GazeTrackerUI(QWidget):
         self.gaze_backend = GazeBackend()
         self.click_backend = ClickBackend()
         self.scroll_backend = ScrollBackend()
+        self.overlay = OverlayWidget()
+        self.overlay.show()
+        self.gaze_dot = GazeDot()
+        self.gaze_dot.show()
 
         # MAIN LAYOUT
         self.main_layout = QHBoxLayout()
@@ -610,6 +616,20 @@ class GazeTrackerUI(QWidget):
                 w,
                 h
             )
+            screen_w, screen_h = pyautogui.size()
+
+            dot_x = int(
+                estimate["gaze_x"] * screen_w
+            )
+
+            dot_y = int(
+                estimate["gaze_y"] * screen_h
+            )
+
+            self.gaze_dot.move(
+                dot_x,
+                dot_y
+            )
             print(
                 f"RAW:{raw_x:.3f},{raw_y:.3f}"
                 )
@@ -657,6 +677,19 @@ class GazeTrackerUI(QWidget):
             self.analytics_status.setText(
             "STATUS : ACTIVE"
             )
+            print("OVERLAY ZONE =", zone)
+            self.overlay.zone.setText(
+                f"ZONE : {zone}"
+            )
+
+            if self.click_backend.has_clicked:
+                self.overlay.click.setText(
+                    "CLICK : DETECTED"
+                )
+            else:
+                self.overlay.click.setText(
+                    "CLICK : READY"
+                )
         self.display_frame(frame)
 
     def update_zone_ui(
