@@ -14,3 +14,6 @@ calibration.json
 
 # editor settings
 .vscode/
+
+# calibration logic (future scope)
+data_collector.py
