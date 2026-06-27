@@ -104,6 +104,3 @@ The resulting executable will be in the `dist/` folder. Always build from `Gaze.
 - **Better gaze control** — the cursor-mapping amplification range is currently hardcoded per a rough estimate of "usable" eye movement, rather than being derived from actual measured per-user range. Planned improvements include adaptive Kalman tuning (responsive during saccades, smooth during fixation) and refining the scroll edge-zone thresholds based on real usage data rather than assumed gaze ranges.
 - **Calibration logic for different screen dimensions** — the project has a 9-point calibration flow (`GazeEstimator`) and a more granular 25-point offline data collector (`data_collector.py`), but neither is currently wired into the live app, and the cursor-mapping logic assumes a fixed screen resolution. Future work should connect a calibration flow to `GazeBackend`'s amplification mapping so the gaze-to-cursor transform adapts automatically to the user's actual screen size and resolution, rather than relying on a fixed amplification range tuned for one setup.
 
-## Notes
-
-This project directly moves the system cursor and performs clicks — be mindful when testing, and consider pausing tracking (via the mini dashboard) before debugging other parts of the app.
