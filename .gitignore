@@ -1,4 +1,16 @@
 __pycache__/
 *.pyc
 gaze_dataset.csv
-gaze_ml_model.pkl
+
+# virtual environment
+.venv/
+
+# PyInstaller build artifacts
+build/
+dist/
+
+# generated/user-specific data
+calibration.json
+
+# editor settings
+.vscode/

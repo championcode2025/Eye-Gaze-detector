@@ -5,3 +5,4 @@ pyautogui
 PyQt5
 scikit-learn
 pandas
+keyboard

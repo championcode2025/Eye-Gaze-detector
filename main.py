@@ -1,11 +1,36 @@
 import sys
 from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction
 from PyQt5.QtGui import QIcon, QPixmap, QPainter, QColor
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QObject, pyqtSignal
 
 from src.gaze_engine import GazeEngine
 from src.dashboard import GazeTrackerUI
 from src.mini_dashboard import MiniDashboard
+
+# `keyboard` gives us a true OS-level global hotkey (works even with no
+# app window focused/visible). It's optional at import time so the app
+# doesn't crash on machines where it hasn't been installed yet --
+# `pip install keyboard`.
+try:
+    import keyboard
+    _KEYBOARD_AVAILABLE = True
+except ImportError:
+    _KEYBOARD_AVAILABLE = False
+
+# NOTE: "Fn" has no keycode and can't be detected by any software --
+# it's swallowed by the keyboard's own firmware before the OS sees it.
+# What actually gets registered here is the Escape key itself, which is
+# what your keyboard sends regardless of whether Fn is held. This is the
+# real binding behind the "Fn+Esc" shortcut shown to the user.
+EXIT_HOTKEY = "esc"
+
+
+class _ExitHotkeyBridge(QObject):
+    """keyboard's global hook fires from its own background thread, but
+    Qt widgets/quit logic must only be touched from the main thread. The
+    hook callback just emits this signal; Qt automatically queues the
+    connected slot onto the main thread since the bridge object lives there."""
+    triggered = pyqtSignal()
 
 
 def make_placeholder_icon():
@@ -26,7 +51,15 @@ class TrayApp:
         self.app.setQuitOnLastWindowClosed(False)  # tray keeps running after windows close
 
         self.engine = GazeEngine()
-        self.dashboard = GazeTrackerUI(self.engine)
+        # Start paused -- don't take over the cursor the instant the .exe
+        # runs. The user turns tracking on explicitly from the mini view
+        # or the dashboard (Pause/Resume, Start/Pause Tracking).
+        if hasattr(self.engine, "pause"):
+            self.engine.pause()
+
+        # dashboard gets a callback so its "Back to Tray" button can hand
+        # control back to this app instead of just hiding itself
+        self.dashboard = GazeTrackerUI(self.engine, on_minimize_to_tray=self.open_mini)
         self.mini = MiniDashboard(self.engine, self.open_dashboard, self.quit_app)
 
         self.tray = QSystemTrayIcon(make_placeholder_icon(), parent=self.app)
@@ -49,11 +82,31 @@ class TrayApp:
         self.tray.activated.connect(self.on_tray_activated)
         self.tray.show()
 
+        self._exit_hotkey_bridge = _ExitHotkeyBridge()
+        self._exit_hotkey_bridge.triggered.connect(self.quit_app)
+        self._register_exit_hotkey()
+
+    def _register_exit_hotkey(self):
+        if not _KEYBOARD_AVAILABLE:
+            print(
+                "[gaze-tracker] 'keyboard' package not installed -- "
+                "the Fn+Esc exit shortcut is disabled. Run: pip install keyboard"
+            )
+            return
+        try:
+            keyboard.add_hotkey(
+                EXIT_HOTKEY,
+                lambda: self._exit_hotkey_bridge.triggered.emit(),
+            )
+        except Exception as exc:
+            print(f"[gaze-tracker] couldn't register global exit hotkey: {exc}")
+
     def on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.Trigger:  # left-click
             self.open_mini()
 
     def open_mini(self):
+        self.dashboard.hide()
         self.mini.show()
         self.mini.raise_()
 

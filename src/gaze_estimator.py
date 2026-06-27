@@ -31,14 +31,14 @@ class GazeEstimator:
         corrected_x = self.kf_x.correct(
             np.array([[np.float32(gaze_ratio_x)]])
         )
-        gaze_x = float(corrected_x[0])
+        gaze_x = float(corrected_x[0,0])
 
         # Kalman filter for y axis
         self.kf_y.predict()
         corrected_y = self.kf_y.correct(
             np.array([[np.float32(gaze_ratio_y)]])
         )
-        gaze_y = float(corrected_y[0])
+        gaze_y = float(corrected_y[0,0])
 
         gaze_x = max(0.0, min(1.0, gaze_x))
         gaze_y = max(0.0, min(1.0, gaze_y))

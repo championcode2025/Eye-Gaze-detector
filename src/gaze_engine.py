@@ -1,4 +1,5 @@
 import cv2
+import numpy as np
 from PyQt5.QtCore import QObject, QTimer, pyqtSignal
 
 from src.camera import Camera
@@ -17,6 +18,10 @@ class GazeEngine(QObject):
     processing loop. Emits signals so any number of UI widgets
     (full dashboard, mini tray view) can display the same live data
     without each owning their own camera/timer.
+
+    If the camera fails to open, the engine still runs and emits a
+    placeholder frame instead of crashing — useful for UI testing
+    on a machine without a working webcam.
     """
 
     frame_ready = pyqtSignal(object)   # raw BGR np.ndarray frame (post-visualiser draw)
@@ -25,7 +30,14 @@ class GazeEngine(QObject):
     def __init__(self, interval_ms=30):
         super().__init__()
 
-        self.cam = Camera(device_index=0)
+        self.camera_available = True
+        try:
+            self.cam = Camera(device_index=0)
+        except Exception as e:
+            print(f"⚠ Camera unavailable, running in UI-preview mode: {e}")
+            self.cam = None
+            self.camera_available = False
+
         self.face_mesh = FaceMesh()
         self.extractor = EyeExtractor()
         self.visualiser = Visualiser()
@@ -48,6 +60,22 @@ class GazeEngine(QObject):
 
     def process_frame(self):
         if self.paused:
+            return
+
+        if not self.camera_available:
+            blank = np.zeros((480, 640, 3), dtype=np.uint8)
+            cv2.putText(
+                blank, "NO CAMERA DETECTED", (90, 240),
+                cv2.FONT_HERSHEY_SIMPLEX, 1.0, (100, 100, 255), 2
+            )
+            self.frame_ready.emit(blank)
+            self.data_ready.emit({
+                "zone": None,
+                "gaze_x": None,
+                "gaze_y": None,
+                "clicked": False,
+                "face_detected": False,
+            })
             return
 
         frame = self.cam.read()
@@ -99,5 +127,6 @@ class GazeEngine(QObject):
 
     def shutdown(self):
         self.timer.stop()
-        self.cam.release()
+        if self.cam is not None:
+            self.cam.release()
         self.face_mesh.close()
